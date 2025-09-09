@@ -373,7 +373,6 @@ class PersonaChatbot {
     }
     
     addBotMessage(message) {
-        let response = message.replace(/\s?\[[^\]]*\]/g, "");
         const html = marked.parse(response);
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
