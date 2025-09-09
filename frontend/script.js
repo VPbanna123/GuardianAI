@@ -1,3 +1,6 @@
+const API_BASE_URL = 'https://guardian-ai-eight.vercel.app/';
+
+
 class PersonaChatbot {
     constructor() {
         this.currentPersona = null;
@@ -98,7 +101,7 @@ class PersonaChatbot {
     
     async loadPersonas() {
         try {
-            const response = await fetch('/personas');
+            const response = await fetch(`${API_BASE_URL}/personas`);
             if (!response.ok) throw new Error('Failed to fetch personas');
             
             this.personas = await response.json();
@@ -195,7 +198,7 @@ class PersonaChatbot {
         
         // Call backend to register persona selection
         try {
-            const response = await fetch('/persona/select', {
+            const response = await fetch('${API_BASE_URL}/persona/select', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -294,7 +297,7 @@ class PersonaChatbot {
         if (!this.currentUser) return;
         
         try {
-            const response = await fetch(`/user/${this.currentUser}/stats`);
+            const response = await fetch(`${API_BASE_URL}/user/${this.currentUser}/stats`);
             if (!response.ok) throw new Error('Failed to get stats');
             
             const stats = await response.json();
@@ -373,6 +376,7 @@ class PersonaChatbot {
     }
     
     addBotMessage(message) {
+        // let response = message.replace(/\s?\[[^\]]*\]/g, "");
         const html = marked.parse(response);
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
@@ -402,7 +406,7 @@ class PersonaChatbot {
         // this.showLoading();
         
         try {
-            const response = await fetch('/chat', {
+            const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
