@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
+# from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import os
@@ -234,5 +234,3 @@ async def get_session_conversations(session_id: str):
 # if __name__ == "__main__":
 #     import uvicorn
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-app = app
