@@ -231,6 +231,8 @@ async def get_session_conversations(session_id: str):
         print(f"Error getting conversations: {e}")
         raise HTTPException(status_code=500, detail="Failed to get conversations")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+app = app
