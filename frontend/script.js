@@ -31,7 +31,7 @@ class PersonaChatbot {
         this.chatMessages = document.getElementById('chatMessages');
         this.messageInput = document.getElementById('messageInput');
         this.sendButton = document.getElementById('sendMessage');
-        this.loadingOverlay = document.getElementById('loadingOverlay');
+        // this.loadingOverlay = document.getElementById('loadingOverlay');
         this.typingIndicator = document.getElementById('typingIndicator');
         this.clearChatBtn = document.getElementById('clearChat');
         this.charCount = document.getElementById('charCount');
@@ -373,6 +373,8 @@ class PersonaChatbot {
     }
     
     addBotMessage(message) {
+        let response = message.replace(/\s?\[[^\]]*\]/g, "");
+        const html = marked.parse(response);
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
         messageEl.innerHTML = `
@@ -398,7 +400,7 @@ class PersonaChatbot {
         this.showTypingIndicator();
         
         // Show loading
-        this.showLoading();
+        // this.showLoading();
         
         try {
             const response = await fetch('/chat', {
@@ -438,9 +440,10 @@ class PersonaChatbot {
             this.hideTypingIndicator();
             this.addBotMessage("Oops! I'm having trouble responding right now. Please try again! 😅");
             this.showToast('Failed to send message. Please try again.', 'error');
-        } finally {
-            this.hideLoading();
-        }
+        } 
+        // finally {
+        //     this.hideLoading();
+        // }
     }
     
     updateMessageCountDisplay(remaining) {
@@ -467,20 +470,20 @@ class PersonaChatbot {
         this.typingIndicator.style.display = 'none';
     }
     
-    showLoading() {
-        this.loadingOverlay.style.display = 'flex';
-        this.sendButton.disabled = true;
-        this.messageInput.disabled = true;
-    }
+    // showLoading() {
+    //     this.loadingOverlay.style.display = 'flex';
+    //     this.sendButton.disabled = true;
+    //     this.messageInput.disabled = true;
+    // }
     
-    hideLoading() {
-        this.loadingOverlay.style.display = 'none';
-        this.sendButton.disabled = false;
-        this.messageInput.disabled = false;
-        if (this.currentUser && this.currentPersona) {
-            this.messageInput.focus();
-        }
-    }
+    // hideLoading() {
+    //     this.loadingOverlay.style.display = 'none';
+    //     this.sendButton.disabled = false;
+    //     this.messageInput.disabled = false;
+    //     if (this.currentUser && this.currentPersona) {
+    //         this.messageInput.focus();
+    //     }
+    // }
     
     updateCharCount() {
         const length = this.messageInput.value.length;

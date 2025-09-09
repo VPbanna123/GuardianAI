@@ -636,7 +636,7 @@ body {
     color: var(--text-muted);
 }
 
-/* ======= LOADING & TOAST STYLES ======= */
+/* ======= LOADING & TOAST STYLES =======
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -669,12 +669,12 @@ body {
 .loading-text {
     font-size: 16px;
     font-weight: 500;
-}
+} */
 
-@keyframes spin {
+/* @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
+} */
 
 .toast-container {
     position: fixed;
