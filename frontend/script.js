@@ -1,6 +1,5 @@
 const API_BASE_URL = 'https://guardian-ai-eight.vercel.app';
 
-
 class PersonaChatbot {
     constructor() {
         this.currentPersona = null;
@@ -34,7 +33,6 @@ class PersonaChatbot {
         this.chatMessages = document.getElementById('chatMessages');
         this.messageInput = document.getElementById('messageInput');
         this.sendButton = document.getElementById('sendMessage');
-        // this.loadingOverlay = document.getElementById('loadingOverlay');
         this.typingIndicator = document.getElementById('typingIndicator');
         this.clearChatBtn = document.getElementById('clearChat');
         this.charCount = document.getElementById('charCount');
@@ -219,7 +217,7 @@ class PersonaChatbot {
         
         // Add persona introduction
         setTimeout(() => {
-            this.addBotMessage(`${this.getPersonaGreeting(key)}`);
+            this.addBotMessage(this.getPersonaGreeting(key));
         }, 500);
         
         this.showToast(`Started chatting with ${persona.name}!`, 'success');
@@ -375,14 +373,13 @@ class PersonaChatbot {
         this.scrollToBottom();
     }
     
-    addBotMessage(message) {
-        // let response = message.replace(/\s?\[[^\]]*\]/g, "");
-        const html = marked.parse(response);
+    // ✅ Fixed addBotMessage function - accepts messageText parameter
+    addBotMessage(messageText) {
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
         messageEl.innerHTML = `
             <div class="message-content">
-                ${this.escapeHtml(message)}
+                ${this.escapeHtml(messageText)}
                 <div class="message-time">${this.formatTime(new Date())}</div>
             </div>
         `;
@@ -401,9 +398,6 @@ class PersonaChatbot {
         
         // Show typing indicator
         this.showTypingIndicator();
-        
-        // Show loading
-        // this.showLoading();
         
         try {
             const response = await fetch(`${API_BASE_URL}/chat`, {
@@ -433,7 +427,7 @@ class PersonaChatbot {
             
             // Simulate typing delay
             setTimeout(() => {
-                this.addBotMessage(data.response);
+                this.addBotMessage(data.response); // ✅ Pass the actual response text
                 this.updateMessageCountDisplay(data.remaining_messages);
                 this.hideTypingIndicator();
             }, 1000 + Math.random() * 2000);
@@ -443,10 +437,7 @@ class PersonaChatbot {
             this.hideTypingIndicator();
             this.addBotMessage("Oops! I'm having trouble responding right now. Please try again! 😅");
             this.showToast('Failed to send message. Please try again.', 'error');
-        } 
-        // finally {
-        //     this.hideLoading();
-        // }
+        }
     }
     
     updateMessageCountDisplay(remaining) {
@@ -465,28 +456,17 @@ class PersonaChatbot {
     }
     
     showTypingIndicator() {
-        this.typingIndicator.style.display = 'flex';
-        this.scrollToBottom();
+        if (this.typingIndicator) {
+            this.typingIndicator.style.display = 'flex';
+            this.scrollToBottom();
+        }
     }
     
     hideTypingIndicator() {
-        this.typingIndicator.style.display = 'none';
+        if (this.typingIndicator) {
+            this.typingIndicator.style.display = 'none';
+        }
     }
-    
-    // showLoading() {
-    //     this.loadingOverlay.style.display = 'flex';
-    //     this.sendButton.disabled = true;
-    //     this.messageInput.disabled = true;
-    // }
-    
-    // hideLoading() {
-    //     this.loadingOverlay.style.display = 'none';
-    //     this.sendButton.disabled = false;
-    //     this.messageInput.disabled = false;
-    //     if (this.currentUser && this.currentPersona) {
-    //         this.messageInput.focus();
-    //     }
-    // }
     
     updateCharCount() {
         const length = this.messageInput.value.length;
@@ -555,16 +535,16 @@ class PersonaChatbot {
 
 // Initialize the chatbot when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new PersonaChatbot();
+    const chatbot = new PersonaChatbot();
+    window.chatbot = chatbot; // Make accessible globally
 });
 
 // Handle page visibility change
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         // Page is visible again, could update message count
-        const chatbot = window.chatbot;
-        if (chatbot && chatbot.currentUser) {
-            chatbot.updateMessageCount();
+        if (window.chatbot && window.chatbot.currentUser) {
+            window.chatbot.updateMessageCount();
         }
     }
 });
