@@ -19,7 +19,7 @@ app = FastAPI(title="Persona Chatbot API")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://guardian-ai-vbno.vercel.app/"],
+    allow_origins=["https://guardina-ai-git-main-vijaypal-singh-rathores-projects.vercel.app/"],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
