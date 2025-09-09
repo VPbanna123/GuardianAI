@@ -50,8 +50,7 @@ class PersonaChatbot {
 
         // Close sidebar when clicking outside
         document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && !this.sidebar.contains(e.target) && 
-                !this.menuToggle.contains(e.target) && this.sidebar.classList.contains('open')) {
+            if (window.innerWidth <= 768 && !this.sidebar.contains(e.target) && !this.menuToggle.contains(e.target) && this.sidebar.classList.contains('open')) {
                 this.sidebar.classList.remove('open');
             }
         });
@@ -96,14 +95,9 @@ class PersonaChatbot {
 
     async loadPersonas() {
         try {
-            console.log('Fetching personas from:', `${API_BASE_URL}/personas`);
             const response = await fetch(`${API_BASE_URL}/personas`);
-            console.log('Response status:', response.status);
-            
             if (!response.ok) throw new Error('Failed to fetch personas');
-            
             this.personas = await response.json();
-            console.log('Personas loaded:', this.personas);
             this.renderPersonas();
         } catch (error) {
             console.error('Failed to load personas:', error);
@@ -118,7 +112,7 @@ class PersonaChatbot {
             const personaCard = document.createElement('div');
             personaCard.className = 'persona-card';
             personaCard.dataset.persona = key;
-            
+
             const avatar = this.getPersonaAvatar(key);
             personaCard.innerHTML = `
                 <div class="persona-avatar">${avatar}</div>
@@ -250,8 +244,8 @@ class PersonaChatbot {
         this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
 
-    addBotMessage(text) {
-        this.addMessage(text, 'bot');
+    addBotMessage(messageText) {
+        this.addMessage(messageText, 'bot');
     }
 
     showTypingIndicator() {
