@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://guardian-ai-eight.vercel.app/';
+const API_BASE_URL = 'https://guardian-ai-eight.vercel.app';
 
 
 class PersonaChatbot {
