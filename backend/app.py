@@ -118,6 +118,7 @@ async def chat_with_persona(chat_message: ChatMessage):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": chat_message.message}
             ],
+            "disable_search": True,
             "max_tokens": 85,
             "temperature": 0.8,
         }
