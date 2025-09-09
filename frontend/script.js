@@ -198,7 +198,7 @@ class PersonaChatbot {
         
         // Call backend to register persona selection
         try {
-            const response = await fetch('${API_BASE_URL}/persona/select', {
+            const response = await fetch(`${API_BASE_URL}/persona/select`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
