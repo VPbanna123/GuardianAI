@@ -121,6 +121,7 @@ async def chat_with_persona(chat_message: ChatMessage):
             "disable_search": True,
             "max_tokens": 85,
             "temperature": 0.8,
+            "top_p": 0.9
         }
         
         # Make API call to Perplexity
