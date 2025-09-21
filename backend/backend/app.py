@@ -119,7 +119,7 @@ async def chat_with_persona(chat_message: ChatMessage):
                 {"role": "user", "content": chat_message.message}
             ],
             "disable_search": True,
-            "max_tokens": 100,
+            "max_tokens": 83,
             "temperature": 0.8
         }
         
