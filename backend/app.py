@@ -1,18 +1,27 @@
-from fastapi import FastAPI, HTTPException
-# from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-import requests
 import os
 from dotenv import load_dotenv
 from datetime import datetime
-
+import google.generativeai as genai
 from models import ChatMessage, ChatResponse
 from personas import get_persona_prompt, get_all_personas
 from rate_limiter import RateLimiter
 from rate_limiter import supabase
+import json
+import asyncio
 
 
 load_dotenv()
+
+# Configure the Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Define the Gemini model to use
+GEMINI_MODEL = "gemini-2.5-flash"
 
 app = FastAPI(title="Persona Chatbot API")
 
@@ -25,11 +34,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static files
-# app.mount("/static", StaticFiles(directory="../frontend"), name="static")
-
-
-PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 
 class SessionManager:
     @staticmethod
@@ -73,6 +77,21 @@ class SessionManager:
         except Exception as e:
             print(f"Error getting user sessions: {e}")
             return []
+    
+    @staticmethod
+    def get_session_history(session_id: str):
+        """Get the conversation history for a session"""
+        try:
+            conversations = supabase.table('conversations').select('message, response').eq('session_id', session_id).order('created_at').execute()
+            history = []
+            for conv in conversations.data:
+                history.append({"role": "user", "parts": [conv['message']]})
+                history.append({"role": "model", "parts": [conv['response']]})
+            return history
+        except Exception as e:
+            print(f"Error getting session history: {e}")
+            return []
+
 
 @app.get("/")
 async def read_root():
@@ -82,7 +101,8 @@ async def read_root():
 async def get_personas():
     return get_all_personas()
 
-@app.post("/chat", response_model=ChatResponse)
+# This is the updated chat endpoint
+@app.post("/chat")
 async def chat_with_persona(chat_message: ChatMessage):
     # Rate limiting check
     can_proceed, remaining = RateLimiter.check_and_update_user_limits(chat_message.username)
@@ -101,61 +121,62 @@ async def chat_with_persona(chat_message: ChatMessage):
         # Get or create session
         session_id = SessionManager.get_or_create_session(user_id, chat_message.persona)
         
-        # Get persona system prompt
+        # Get persona system prompt and session history
         system_prompt = get_persona_prompt(chat_message.persona)
         if not system_prompt:
             raise HTTPException(status_code=400, detail="Invalid persona")
+
+        # Get conversation history for the current session
+        chat_history = SessionManager.get_session_history(session_id)
         
-        # Prepare Perplexity API request
-        headers = {
-            "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": "sonar",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": chat_message.message}
-            ],
-            "disable_search": True,
-            "max_tokens": 100,
-            "temperature": 0.8
-        }
-        
-        # Make API call to Perplexity
-        response = requests.post(
-            "https://api.perplexity.ai/chat/completions",
-            headers=headers,
-            json=payload
+        # Initialize a Gemini model with the system prompt
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL,
+            system_instruction=system_prompt,
         )
+
+        # Start a chat session with the existing history
+        chat_session = model.start_chat(history=chat_history)
         
-        if response.status_code != 200:
-            raise HTTPException(status_code=500, detail="Failed to get response from AI")
+        # Stream the response from the Gemini API
+        response_stream = await chat_session.send_message_async(chat_message.message, stream=True)
         
-        ai_response = response.json()
-        bot_message = ai_response['choices'][0]['message']['content']
-        token_count = ai_response.get('usage', {}).get('total_tokens', 0)
-        
-        # Store conversation in database with session_id
-        conversation_data = {
-            'user_id': user_id,
-            'session_id': session_id,
-            'persona': chat_message.persona,
-            'message': chat_message.message,
-            'response': bot_message,
-            'token_count': token_count
-        }
-        supabase.table('conversations').insert(conversation_data).execute()
-        
-        return ChatResponse(
-            response=bot_message,
-            persona=chat_message.persona,
-            token_count=token_count,
-            remaining_messages=remaining,
-            session_id=session_id
-        )
-        
+        async def stream_response():
+            full_response_text = ""
+            for chunk in response_stream:
+                chunk_text = chunk.text
+                full_response_text += chunk_text
+                yield f"data: {json.dumps({'response': chunk_text})}\n\n"
+
+            # After streaming is complete, get token count
+            token_count_response = await genai.get_model(GEMINI_MODEL).count_tokens_async(
+                chat_session.history + [{"role": "user", "parts": [chat_message.message]}]
+            )
+            token_count = token_count_response.total_tokens
+
+            # Store conversation in the database
+            conversation_data = {
+                'user_id': user_id,
+                'session_id': session_id,
+                'persona': chat_message.persona,
+                'message': chat_message.message,
+                'response': full_response_text,
+                'token_count': token_count
+            }
+            supabase.table('conversations').insert(conversation_data).execute()
+
+            # Send a final message with the full response details
+            final_data = {
+                "response": full_response_text,
+                "persona": chat_message.persona,
+                "token_count": token_count,
+                "remaining_messages": remaining,
+                "session_id": session_id
+            }
+            yield f"data: {json.dumps(final_data)}\n\n"
+
+        return Response(stream_response(), media_type="text/event-stream")
+
     except Exception as e:
         print(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -230,8 +251,3 @@ async def get_session_conversations(session_id: str):
     except Exception as e:
         print(f"Error getting conversations: {e}")
         raise HTTPException(status_code=500, detail="Failed to get conversations")
-
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
-
