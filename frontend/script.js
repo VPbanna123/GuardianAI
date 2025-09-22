@@ -373,7 +373,7 @@ class PersonaChatbot {
         this.scrollToBottom();
     }
     
-    // ✅ Fixed addBotMessage function - accepts messageText parameter
+    // ✅ Updated addBotMessage to handle streamed content
     addBotMessage(messageText) {
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
@@ -385,55 +385,79 @@ class PersonaChatbot {
         `;
         this.chatMessages.appendChild(messageEl);
         this.scrollToBottom();
+        return messageEl.querySelector('.message-content');
     }
     
     async sendMessage() {
         const message = this.messageInput.value.trim();
         if (!message || !this.currentUser || !this.currentPersona) return;
         
-        // Add user message
+        // Add user message and clear input
         this.addUserMessage(message);
         this.messageInput.value = '';
         this.updateCharCount();
         
         // Show typing indicator
         this.showTypingIndicator();
-        
+
         try {
-            const response = await fetch(`${API_BASE_URL}/chat`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: message,
-                    persona: this.currentPersona,
-                    username: this.currentUser
-                })
-            });
-            
-            if (response.status === 429) {
-                this.addBotMessage("Oh no! You've reached your daily message limit! 😅 Come back tomorrow for more amazing conversations! 🌅");
-                this.showToast('Daily message limit reached!', 'warning');
-                this.disableChatInput();
-                return;
-            }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            // Simulate typing delay
-            setTimeout(() => {
-                this.addBotMessage(data.response); // ✅ Pass the actual response text
-                this.updateMessageCountDisplay(data.remaining_messages);
+            // Use EventSource for streaming
+            const url = new URL(`${API_BASE_URL}/chat`);
+            url.searchParams.append('message', message);
+            url.searchParams.append('persona', this.currentPersona);
+            url.searchParams.append('username', this.currentUser);
+
+            const eventSource = new EventSource(url);
+            let botMessageElement = null;
+            let finalDataReceived = false;
+            let fullResponse = '';
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.session_id) {
+                    // This is the final message with full data
+                    this.updateMessageCountDisplay(data.remaining_messages);
+                    this.hideTypingIndicator();
+                    eventSource.close();
+                    finalDataReceived = true;
+                } else if (data.response) {
+                    // This is a chunk of the streaming response
+                    if (!botMessageElement) {
+                        botMessageElement = this.addBotMessage("");
+                    }
+                    fullResponse += data.response;
+                    botMessageElement.innerHTML = this.escapeHtml(fullResponse);
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                console.error("EventSource failed:", error);
                 this.hideTypingIndicator();
-            }, 1000 + Math.random() * 2000);
-            
+                if (!finalDataReceived) {
+                    this.addBotMessage("Oops! I'm having trouble responding right now. Please try again! 😅");
+                    this.showToast('Failed to get response. Please try again.', 'error');
+                }
+                eventSource.close();
+            };
+
+            eventSource.addEventListener('error', (event) => {
+                // Handle rate limit or other server errors
+                if (event.status === 429) {
+                    this.addBotMessage("Oh no! You've reached your daily message limit! 😅 Come back tomorrow for more amazing conversations! 🌅");
+                    this.showToast('Daily message limit reached!', 'warning');
+                    this.disableChatInput();
+                } else {
+                    console.error("EventSource failed:", event);
+                    this.addBotMessage("Oops! I'm having trouble responding right now. Please try again! 😅");
+                    this.showToast('Failed to send message. Please try again.', 'error');
+                }
+                this.hideTypingIndicator();
+                eventSource.close();
+            });
+
         } catch (error) {
-            console.error('Error sending message:', error);
+            console.error('Error in sendMessage:', error);
             this.hideTypingIndicator();
             this.addBotMessage("Oops! I'm having trouble responding right now. Please try again! 😅");
             this.showToast('Failed to send message. Please try again.', 'error');
