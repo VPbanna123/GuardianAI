@@ -1,0 +1,21 @@
+nohup: ignoring input
+INFO:     Started server process [125240]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:41068 - "GET /personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41874 - "GET /personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44644 - "GET /personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43278 - "GET /personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40456 - "GET /user/test_demo2/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40466 - "OPTIONS /persona/select HTTP/1.1" 200 OK
+Persona selection error: 
+INFO:     127.0.0.1:40466 - "POST /persona/select HTTP/1.1" 500 Internal Server Error
+Chat error: GenerativeModel.__init__() got an unexpected keyword argument 'system_instruction'
+INFO:     127.0.0.1:46340 - "GET /chat?message=hi+aarohi+kaisi+ho+%3F+aaj+class+nhi+aaye&persona=aarohi&username=test_demo2 HTTP/1.1" 500 Internal Server Error
+Chat error: GenerativeModel.__init__() got an unexpected keyword argument 'system_instruction'
+INFO:     127.0.0.1:42780 - "GET /chat?message=kyo&persona=aarohi&username=test_demo2 HTTP/1.1" 500 Internal Server Error
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [125240]

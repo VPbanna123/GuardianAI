@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://guardian-ai-eight.vercel.app';
+const API_BASE_URL = 'http://localhost:8000'; // Change this to your local server URL
 
 class PersonaChatbot {
     constructor() {
@@ -98,19 +98,32 @@ class PersonaChatbot {
     }
     
     async loadPersonas() {
+        console.log('🔄 Loading personas from:', `${API_BASE_URL}/personas`);
         try {
             const response = await fetch(`${API_BASE_URL}/personas`);
-            if (!response.ok) throw new Error('Failed to fetch personas');
+            console.log('📡 Response status:', response.status);
+            console.log('📡 Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             
             this.personas = await response.json();
+            console.log('✅ Personas loaded:', Object.keys(this.personas));
             this.renderPersonas();
         } catch (error) {
-            console.error('Failed to load personas:', error);
+            console.error('❌ Failed to load personas:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack,
+                apiUrl: `${API_BASE_URL}/personas`
+            });
             this.showToast('Failed to load personas. Please refresh the page.', 'error');
             this.personaList.innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Failed to load personas</span>
+                    <p style="font-size: 12px; margin-top: 5px;">Error: ${error.message}</p>
                     <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #f56565; color: white; border: none; border-radius: 20px; cursor: pointer;">Retry</button>
                 </div>
             `;
@@ -374,7 +387,7 @@ class PersonaChatbot {
     }
     
     // ✅ Updated addBotMessage to handle streamed content
-    addBotMessage(messageText) {
+    addBotMessage(messageText, shouldScroll = true) {
         const messageEl = document.createElement('div');
         messageEl.className = 'message bot bounce-in';
         messageEl.innerHTML = `
@@ -384,10 +397,45 @@ class PersonaChatbot {
             </div>
         `;
         this.chatMessages.appendChild(messageEl);
-        this.scrollToBottom();
-        return messageEl.querySelector('.message-content');
+        if (shouldScroll) {
+            this.scrollToBottom();
+        }
+        return messageEl; // Return the full element
     }
     
+    // Simple markdown renderer for basic formatting
+    renderMarkdown(text) {
+        if (!text) return '';
+        
+        // Escape HTML first to prevent XSS
+        text = this.escapeHtml(text);
+        
+        // Apply basic markdown formatting
+        text = text
+            // Bold: **text** or __text__
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__(.*?)__/g, '<strong>$1</strong>')
+            // Italic: *text* or _text_
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/_(.*?)_/g, '<em>$1</em>')
+            // Line breaks
+            .replace(/\n/g, '<br>');
+            
+        return text;
+    }
+    
+    updateBotMessage(messageElement, text) {
+        if (messageElement) {
+            const contentDiv = messageElement.querySelector('.message-content');
+            if (contentDiv) {
+                // Update with markdown rendering, preserving the time element
+                const timeElement = contentDiv.querySelector('.message-time');
+                const timeHTML = timeElement ? timeElement.outerHTML : '';
+                contentDiv.innerHTML = this.renderMarkdown(text) + timeHTML;
+            }
+        }
+    }
+
     async sendMessage() {
         const message = this.messageInput.value.trim();
         if (!message || !this.currentUser || !this.currentPersona) return;
@@ -401,7 +449,6 @@ class PersonaChatbot {
         this.showTypingIndicator();
 
         try {
-            // Use EventSource for streaming
             const url = new URL(`${API_BASE_URL}/chat`);
             url.searchParams.append('message', message);
             url.searchParams.append('persona', this.currentPersona);
@@ -413,21 +460,45 @@ class PersonaChatbot {
             let fullResponse = '';
 
             eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📡 Received data:', data);
 
-                if (data.session_id) {
-                    // This is the final message with full data
-                    this.updateMessageCountDisplay(data.remaining_messages);
-                    this.hideTypingIndicator();
-                    eventSource.close();
-                    finalDataReceived = true;
-                } else if (data.response) {
-                    // This is a chunk of the streaming response
-                    if (!botMessageElement) {
-                        botMessageElement = this.addBotMessage("");
+                    if (data.type === 'chunk' && data.response) {
+                        // This is a streaming chunk
+                        if (!botMessageElement) {
+                            botMessageElement = this.addBotMessage("", false); // Don't scroll yet
+                        }
+                        fullResponse += data.response;
+                        this.updateBotMessage(botMessageElement, fullResponse);
+                        
+                    } else if (data.type === 'complete') {
+                        // This is the final complete message
+                        console.log('✅ Stream complete:', data);
+                        this.updateMessageCountDisplay(data.remaining_messages);
+                        this.hideTypingIndicator();
+                        if (botMessageElement) {
+                            this.scrollToBottom(); // Scroll after completion
+                        }
+                        eventSource.close();
+                        finalDataReceived = true;
+                        
+                    } else if (data.type === 'error') {
+                        // Handle errors
+                        console.error('❌ Stream error:', data.error);
+                        this.hideTypingIndicator();
+                        this.addBotMessage("Oops! I encountered an error. Please try again! 😅");
+                        eventSource.close();
+                        
+                    } else if (data.session_id && !data.type) {
+                        // Fallback for old format
+                        this.updateMessageCountDisplay(data.remaining_messages);
+                        this.hideTypingIndicator();
+                        eventSource.close();
+                        finalDataReceived = true;
                     }
-                    fullResponse += data.response;
-                    botMessageElement.innerHTML = this.escapeHtml(fullResponse);
+                } catch (parseError) {
+                    console.error('❌ Failed to parse event data:', parseError, event.data);
                 }
             };
 
