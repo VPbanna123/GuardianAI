@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:8000'; // Change this to your local server URL
+const API_BASE_URL = 'https://guardian-ai-wsxi.vercel.app';
+
 
 class PersonaChatbot {
     constructor() {
