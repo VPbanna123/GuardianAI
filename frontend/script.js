@@ -98,7 +98,7 @@ class PersonaChatbot {
     }
     
     async loadPersonas() {
-        console.log('🔄 Loading personas from:', `${API_BASE_URL}/personas`);
+        
         try {
             const response = await fetch(`${API_BASE_URL}/personas`);
             console.log('📡 Response status:', response.status);
